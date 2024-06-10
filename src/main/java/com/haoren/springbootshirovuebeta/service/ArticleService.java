@@ -28,4 +28,9 @@ public class ArticleService {
         articleDao.addArticle(article);
         return CommonUtil.successJson();
     }
+
+    public JSONObject updateArticle(JSONObject article) {
+        articleDao.updateArticle(article);
+        return CommonUtil.successJson();
+    }
 }

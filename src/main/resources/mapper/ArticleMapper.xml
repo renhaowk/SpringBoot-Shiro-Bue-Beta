@@ -21,11 +21,8 @@
         limit #{offSet}, #{pageRow}
     </select>
 
-    <select id="updateArticle">
-            update article
-            set content = #{content}
-            where id = #{id}
-    </select>
-
+    <update id="updateArticle" parameterType="com.alibaba.fastjson.JSONObject">
+        update article set content = #{content} where id = #{id}
+    </update>
 </mapper>
 

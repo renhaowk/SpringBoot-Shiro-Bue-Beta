@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.haoren.springbootshirovuebeta.dao.UserDao">
+    <select id="countUser" resultType="java.lang.Integer">
+        select count(*) from sys_user where delete_status='1';
+    </select>
+
+    <resultMap id="userMap" type="com.haoren.springbootshirovuebeta.dto.GeneralUserInfo">
+        <id property="userId" column="userId"/>
+        <result property="username" column="username"/>
+        <result property="nickname" column="nickname"/>
+        <result property="deleteStatus" column="deleteStatus"/>
+        <result property="createTime" column="createTime"/>
+        <result property="updateTime" column="updateTime"/>
+        <collection property="roles" ofType="com.alibaba.fastjson.JSONObject">
+            <id property="roleId" column="roleId"/>
+            <result property="roleName" column="roleName"/>
+        </collection>
+    </resultMap>
+    <select id="listUser" resultMap="userMap">
+        SELECT u.*,
+               r.id        roleId,
+               r.role_name roleName
+        FROM (
+                 SELECT id                                      userId,
+                        username                                username,
+                        nickname                                nickname,
+                        delete_status                           deleteStatus,
+                        DATE_FORMAT(create_time, '%Y.%m.%d %T') createTime,
+                        DATE_FORMAT(update_time, '%Y.%m.%d %T') updateTime
+                 FROM sys_user
+                 WHERE delete_status = '1'
+                 ORDER BY id
+                     LIMIT #{offSet}, #{pageRow}
+             ) u
+                 LEFT JOIN sys_user_role ur on ur.user_id = u.userId
+                 LEFT JOIN sys_role r ON r.id = ur.role_id
+        ORDER BY u.userId, r.id
+    </select>
+
+    <select id="queryExistUserName">
+        SELECT count(*)
+        FROM sys_user
+        WHERE username = #{username}
+          AND delete_status = '1'
+    </select>
+
+<!--    keyProperty和userGenerateKeys是为了将insert语句的返回值付给入参的userId，供后续使用-->
+    <insert id="addUser" keyProperty="userID" useGeneratedKeys="true">
+        insert into sys_user (username, nickname, password)
+        values (#{username}, #{nickname}, #{password})
+    </insert>
+
+    <insert id="batchAddUserRole">
+        insert into sys_user_role (user_id, role_id)
+        values
+        <foreach collection="roleIds" item="item" separator=",">
+            (#{userId}, #{item})
+        </foreach>
+    </insert>
+
+    <update id="updateUser">
+        update sys_user
+        set nickname = #{nickname},
+            <if test="password!=null and password!=''">
+                password = #{password},
+            </if>
+            , delete_status = #{delete_status}
+        where user_id=#{userId} and id!=10001
+    </update>
+
+    <delete id="removeAllUserRole">
+        delete from sys_user_role
+        where user_id = #{userId}
+    </delete>
+
+    <select id="getAllRoles" resultType="com.alibaba.fastjson.JSONObject">
+        select id roleId,
+               role_name roleName
+        from sys_role
+        where delete_status = '1'
+    </select>
+
+    <resultMap id="roleMap" type="com.alibaba.fastjson.JSONObject">
+        <id property="roleId" column="roleId"/>
+        <result property="roleName" column="roleName"/>
+        <collection property="user">
+            <id property="userId" column="userId"/>
+            <result property="nickname" column="nickname"/>
+        </collection>
+        <collection property="permissions">
+            <id property="permissionId" column="permissionId"/>
+            <result property="menuCode" column="menuCode"/>
+            <result property="menuName" column="menuName"/>
+            <result property="permissionName" column="permissionName"/>
+        </collection>
+    </resultMap>
+
+    <select id="listRoles" resultMap="roleMap">
+        SELECT r.id              roleId,
+               r.role_name       roleName,
+               u.id              userId,
+               u.nickname,
+               p.id              permissionId,
+               p.menu_code       menuCode,
+               p.menu_name       menuName,
+               p.permission_name permissionName
+        FROM sys_role r
+                 LEFT JOIN sys_user_role ur on ur.role_id = r.id
+                 LEFT JOIN sys_user u ON u.id = ur.user_id AND u.delete_status = '1'
+                 LEFT JOIN sys_role_permission rp ON r.id = rp.role_id AND rp.delete_status = '1'
+                 LEFT JOIN sys_permission p ON rp.permission_id = p.id
+        WHERE r.delete_status = '1'
+        ORDER BY r.id, p.id
+    </select>
+
+    <select id="listPermissions" resultMap="">
+        SELECT p.id,
+               p.menu_name           menuName,
+               p.permission_name     permissionName,
+               p.required_permission requiredPerm
+        FROM sys_permission p;
+    </select>
+
+    <insert id="insertRole" useGeneratedKeys="true" keyProperty="roleId">
+        insert into sys_role (role_name)
+        values (#{roleName})
+    </insert>
+
+    <insert id="insertRolePermissions">
+        insert into sys_role_permission (role_id, permission_id)
+        values
+        <foreach collection="rolePermissions" item="item" separator=",">
+            (#{roleId}, #{item})
+        </foreach>
+    </insert>
+
+    <update id="updateRoleName">
+        update sys_role
+        set role_name = #{roleName}
+        where role_id = #{roleId}
+    </update>
+
+    <update id="removeOldPermissons">
+        update sys_role_permission
+        set delete_status = '2'
+        where role_id = #{roleId}
+        and permisison_id
+        in
+        <foreach collection="oldPermissions" item="item" index="index" separator="," open="(" close=")">
+            #{item}
+        </foreach>
+    </update>
+
+    <insert id="insertNewPermissions">
+        insert into sys_role_permission (role_id, permisison_id)
+        values (
+                <foreach collection="newPermissions" item="item" index="index" separator=",">
+                    #{roleId}, #{item}
+                </foreach>
+               )
+    </insert>
+
+    <select id="countRoleUser">
+        select count(0)
+        from sys_user_role ur
+        inner join sys_user u on ur.user_id = u.id
+        where ur.role_id = #{roleId}
+          and u.delete_status = '1'
+    </select>
+
+    <update id="removeRole">
+        update sys_role
+        set delete_status = '2'
+        where id = #{roleId}
+        and id != 1
+    </update>
+
+    <update id="removeRoleAllPermissions">
+        update sys_role_permission
+        set delete_status='2'
+        where role_id = #{roleId}
+        and role_id != 1
+    </update>
+
+</mapper>

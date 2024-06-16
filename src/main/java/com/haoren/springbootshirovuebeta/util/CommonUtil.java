@@ -33,6 +33,8 @@ public class CommonUtil {
      * 在分页查询之前,为查询条件里加上分页参数
      *
      * @param jsonObject    查询条件json
+     *                      pageNum:第几页,从1开始
+     *                      pageRow:每页条数
      * @param defaultPageRow 默认的每页条数,即前端不传pageRow参数时的每页条数
      */
     public static void fillPagesParams(JSONObject jsonObject, int defaultPageRow) {
